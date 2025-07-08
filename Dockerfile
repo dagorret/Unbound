@@ -1,28 +1,28 @@
-# Usa una imagen base mínima
 FROM alpine:latest
 
-# Argumento opcional para UID y GID
-ARG UNBOUND_UID=1000
-ARG UNBOUND_GID=1000
+# Variables de entorno para UID/GID opcionales
+ARG UNBOUND_UID=100
+ARG UNBOUND_GID=100
 
-RUN apk update && apk add --no-cache unbound curl \
-    && [ "$(getent group $UNBOUND_GID)" ] || addgroup -g $UNBOUND_GID unbound \
-    && [ "$(getent passwd $UNBOUND_UID)" ] || adduser -S -D -H -u $UNBOUND_UID -G unbound unbound
+# Instala Unbound y herramientas útiles
+RUN apk update && apk add --no-cache unbound curl
 
-# Crea los directorios necesarios con permisos
-RUN mkdir -p /etc/unbound && chown -R unbound:unbound /etc/unbound
-
-# Copia archivos de configuración
-COPY etc/unbound.conf /etc/unbound/unbound.conf
-COPY root.hints /etc/unbound/root.hints
+# Crea carpetas necesarias y copia configuración
+RUN mkdir -p /etc/unbound
+COPY etc/unbound/unbound.conf /etc/unbound/unbound.conf
 COPY entrypoint.sh /entrypoint.sh
 COPY unbound-control-setup.sh /etc/unbound/unbound-control-setup.sh
 
-# Da permisos de ejecución al entrypoint y scripts
+# Copia root.hints si lo tenés local (si no, omitilo)
+# COPY root.hints /etc/unbound/root.hints
+
 RUN chmod +x /entrypoint.sh /etc/unbound/unbound-control-setup.sh
 
-# Ejecuta como usuario no root por defecto
-USER unbound:unbound
+# Expone puertos DNS
+EXPOSE 53/udp
+EXPOSE 53/tcp
 
-# Entrypoint
+# Usa el usuario ya creado por el paquete unbound
+USER unbound
+
 ENTRYPOINT ["/entrypoint.sh"]
