@@ -9,8 +9,8 @@ services:
       dockerfile: Dockerfile
     image: dagorret/unbound:latest
     ports:
-      - "5335:53/udp"  # DNS UDP externo
-      - "5335:53/tcp"  # DNS TCP externo
+      - "5335:5345/udp"  # DNS UDP externo
+      - "5335:5335/tcp"  # DNS TCP externo
     volumes:
       - ./etc:/etc/unbound              # Configuración editable desde el host
       - unbound-control:/var/unbound-control  # Archivos de control remoto (solo contenedor)
