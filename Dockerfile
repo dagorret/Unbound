@@ -1,32 +1,32 @@
-# Usa Alpine Linux por su bajo tamaño y seguridad
+# Usa Alpine como base por su tamaño reducido y eficiencia
 FROM alpine:latest
 
-# Información del mantenedor
+# Etiqueta de mantenimiento
 LABEL maintainer="dagorret.com.ar"
 
-# Instala Unbound y herramientas útiles (como dig)
+# Instala paquetes necesarios: unbound, herramientas de red y curl para actualización root.hints
 RUN apk update && \
-    apk add --no-cache unbound unbound-libs bind-tools && \
+    apk add --no-cache unbound unbound-libs bind-tools curl && \
     mkdir -p /etc/unbound && \
     chown -R unbound:unbound /etc/unbound
 
-# Copia configuración desde ./etc del host al contenedor
+# Copia los archivos de configuración desde el contexto
 COPY ./etc /etc/unbound
 
-# Copia el script de entrada que actualiza root.hints antes de iniciar
+# Copia el script de entrada para actualización de root.hints
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Genera claves para control remoto si aún no existen
-RUN [ ! -f /etc/unbound/unbound_control.key ] && \
-    unbound-control-setup -d /etc/unbound || true
+# Genera claves TLS necesarias para control remoto (unbound-control)
+RUN unbound-control-setup -d /etc/unbound && \
+    chown -R unbound:unbound /etc/unbound
 
-# Expone el puerto alternativo 5335 (TCP y UDP) para evitar conflictos con servicios locales
-EXPOSE 5335/udp
-EXPOSE 5335/tcp
+# Expone el puerto DNS interno por UDP y TCP
+EXPOSE 53/udp
+EXPOSE 53/tcp
 
-# Script que actualiza raíces y luego lanza Unbound
+# Entrypoint que actualiza root.hints y luego lanza Unbound
 ENTRYPOINT ["/entrypoint.sh"]
 
-# Comando por defecto: inicia Unbound en foreground y con configuración externa
-CMD ["unbound", "-d", "-c", "/etc/unbound/unbound.conf"]
+# Comando por defecto en modo foreground
+CMD [ "unbound", "-d", "-c", "/etc/unbound/unbound.conf" ]
