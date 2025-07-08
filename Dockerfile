@@ -4,29 +4,32 @@ FROM alpine:latest
 # Etiqueta de mantenimiento
 LABEL maintainer="dagorret.com.ar"
 
-# Instala paquetes necesarios: unbound, herramientas de red y curl para actualización root.hints
+# Instala Unbound, herramientas de red, y curl para actualizar root.hints
 RUN apk update && \
-    apk add --no-cache unbound unbound-libs bind-tools curl && \
-    mkdir -p /etc/unbound && \
+    apk add --no-cache unbound unbound-libs bind-tools curl
+
+# Crea el directorio de configuración y establece permisos
+RUN mkdir -p /etc/unbound && \
     chown -R unbound:unbound /etc/unbound
 
-# Copia los archivos de configuración desde el contexto
-COPY ./etc /etc/unbound
+# Copia los archivos de configuración (excepto las claves)
+COPY ./etc/unbound.conf /etc/unbound/unbound.conf
+COPY ./etc/root.hints /etc/unbound/root.hints
 
-# Copia el script de entrada para actualización de root.hints
+# Copia el script de arranque
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Genera claves TLS necesarias para control remoto (unbound-control)
+# Genera claves TLS necesarias para unbound-control dentro de la imagen
 RUN unbound-control-setup -d /etc/unbound && \
     chown -R unbound:unbound /etc/unbound
 
-# Expone el puerto DNS interno por UDP y TCP
+# Expone el puerto DNS por UDP y TCP
 EXPOSE 53/udp
 EXPOSE 53/tcp
 
-# Entrypoint que actualiza root.hints y luego lanza Unbound
+# Script de entrada que actualiza root.hints antes de iniciar Unbound
 ENTRYPOINT ["/entrypoint.sh"]
 
-# Comando por defecto en modo foreground
+# Comando por defecto
 CMD [ "unbound", "-d", "-c", "/etc/unbound/unbound.conf" ]
