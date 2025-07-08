@@ -1,31 +1,48 @@
-# Usa Alpine como base por su tamaño reducido y eficiencia
+Dockerfile optimizado para Unbound sobre Alpine Linux
+
+------------------------------------------------------
+
+Diseñado para ser eficiente, seguro, y con configuración externa
+
+Incluye soporte para control remoto y actualización automática de root.hints
+
+🔹 Imagen base liviana y actualizada
+
 FROM alpine:latest
 
-# Etiqueta de mantenimiento
+🔹 Metadatos del mantenedor
+
 LABEL maintainer="dagorret.com.ar"
 
-# Instala paquetes necesarios: unbound y utilidades para debugging opcional
-RUN apk update && \
-    apk add --no-cache unbound unbound-libs bind-tools && \
-    mkdir -p /etc/unbound && \
-    chown -R unbound:unbound /etc/unbound
+🔹 Instalación de Unbound y herramientas de diagnóstico DNS
 
-# Copia los archivos de configuración desde el contexto
+RUN apk update && 
+apk add --no-cache unbound unbound-libs bind-tools && 
+mkdir -p /etc/unbound && 
+chown -R unbound:unbound /etc/unbound
+
+🔹 Copia archivos de configuración desde el contexto de build
+
 COPY ./etc /etc/unbound
 
-# Genera claves TLS para control remoto si no existen
-RUN [ ! -f /etc/unbound/unbound_control.key ] && \
-    unbound-control-setup -d /etc/unbound || true
+🔹 Genera claves de control remoto si no existen
 
-# Expone el puerto DNS por UDP y TCP
-EXPOSE 53/udp
-EXPOSE 53/tcp
+RUN [ ! -f /etc/unbound/unbound_control.key ] && 
+unbound-control-setup -d /etc/unbound || true
 
-# Ejecuta Unbound como foreground (modo servicio dentro del contenedor)
-CMD [ "unbound", "-d", "-c", "/etc/unbound/unbound.conf" ]
+🔹 Copia el script de entrada (para actualizar root.hints, etc.)
 
-# Copia el script de entrada que actualiza root.hints automáticamente
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh RUN chmod +x /entrypoint.sh
+
+🔹 Expone puertos DNS
+
+EXPOSE 5335/udp EXPOSE 5353/tcp
+
+🔹 Script de entrada
 
 ENTRYPOINT ["/entrypoint.sh"]
+
+🔹 Ejecución principal de Unbound
+
+CMD ["unbound", "-d", "-c", "/etc/unbound/unbound.conf"]
+
