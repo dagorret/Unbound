@@ -23,3 +23,9 @@ EXPOSE 53/tcp
 
 # Ejecuta Unbound como foreground (modo servicio dentro del contenedor)
 CMD [ "unbound", "-d", "-c", "/etc/unbound/unbound.conf" ]
+
+# Copia el script de entrada que actualiza root.hints automáticamente
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
