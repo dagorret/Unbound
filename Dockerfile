@@ -1,35 +1,29 @@
-# Usa Alpine como base por su tamaño reducido y eficiencia
+# Usa una imagen base mínima
 FROM alpine:latest
 
-# Etiqueta de mantenimiento
-LABEL maintainer="dagorret.com.ar"
+# Argumento opcional para UID y GID
+ARG UNBOUND_UID=1000
+ARG UNBOUND_GID=1000
 
-# Instala Unbound, herramientas de red, y curl para actualizar root.hints
-RUN apk update && \
-    apk add --no-cache unbound unbound-libs bind-tools curl openssl
+# Instala dependencias necesarias y crea usuario
+RUN apk update && apk add --no-cache unbound curl \
+    && addgroup -g $UNBOUND_GID unbound \
+    && adduser -S -D -H -u $UNBOUND_UID -G unbound unbound
 
-# Crea el directorio de configuración y establece permisos
-RUN mkdir -p /etc/unbound && \
-    chown -R unbound:unbound /etc/unbound
+# Crea los directorios necesarios con permisos
+RUN mkdir -p /etc/unbound && chown -R unbound:unbound /etc/unbound
 
-# Copia los archivos de configuración (excepto las claves)
-COPY ./etc/unbound.conf /etc/unbound/unbound.conf
-#COPY ./etc/root.hints /etc/unbound/root.hints
-
-# Copia el script de arranque
+# Copia archivos de configuración
+COPY etc/unbound.conf /etc/unbound/unbound.conf
+COPY root.hints /etc/unbound/root.hints
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY unbound-control-setup.sh /etc/unbound/unbound-control-setup.sh
 
-# Genera claves TLS necesarias para unbound-control dentro de la imagen
-RUN unbound-control-setup -d /etc/unbound && \
-    chown -R unbound:unbound /etc/unbound
+# Da permisos de ejecución al entrypoint y scripts
+RUN chmod +x /entrypoint.sh /etc/unbound/unbound-control-setup.sh
 
-# Expone el puerto DNS por UDP y TCP
-EXPOSE 53/udp
-EXPOSE 53/tcp
+# Ejecuta como usuario no root por defecto
+USER unbound:unbound
 
-# Script de entrada que actualiza root.hints antes de iniciar Unbound
+# Entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Comando por defecto
-CMD [ "unbound", "-d", "-c", "/etc/unbound/unbound.conf" ]
