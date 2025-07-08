@@ -5,10 +5,9 @@ FROM alpine:latest
 ARG UNBOUND_UID=1000
 ARG UNBOUND_GID=1000
 
-# Instala dependencias necesarias y crea usuario
 RUN apk update && apk add --no-cache unbound curl \
-    && addgroup -g $UNBOUND_GID unbound \
-    && adduser -S -D -H -u $UNBOUND_UID -G unbound unbound
+    && [ "$(getent group $UNBOUND_GID)" ] || addgroup -g $UNBOUND_GID unbound \
+    && [ "$(getent passwd $UNBOUND_UID)" ] || adduser -S -D -H -u $UNBOUND_UID -G unbound unbound
 
 # Crea los directorios necesarios con permisos
 RUN mkdir -p /etc/unbound && chown -R unbound:unbound /etc/unbound
