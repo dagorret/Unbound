@@ -1,47 +1,49 @@
-# ----------------------------
-# Makefile para imagen Unbound
-# ----------------------------
-# Provee comandos para construir la imagen Docker, ejecutarla, y actualizar raíces DNS manualmente.
+# Makefile para Unbound DNS en Docker
+# Permite construir, ejecutar, reiniciar y administrar el contenedor
 
-# Nombre de la imagen
-IMAGE_NAME = dagorret/unbound
-CONTAINER_NAME = unbound
+# Nombre del contenedor
+CONTAINER_NAME=unbound
 
-# Versión de Unbound deseada (puede extraerse dinámicamente si se prefiere)
-UNBOUND_VERSION ?= latest
-
-# Ruta al archivo de raíces DNS dentro del árbol del build
-ROOT_HINTS_URL = https://www.internic.net/domain/named.root
-ROOT_HINTS_FILE = etc/root.hints
-
-## build: Construye la imagen Docker local
+# Construye la imagen Docker desde el Dockerfile
 build:
-	@echo "🔧 Construyendo imagen $(IMAGE_NAME)..."
-	docker build -t $(IMAGE_NAME) .
+	docker build -t dagorret/unbound .
 
-## run: Lanza el contenedor en modo interactivo para pruebas
+# Ejecuta el contenedor con puertos DNS y volumen de configuración
 run:
 	@echo "🚀 Ejecutando contenedor $(CONTAINER_NAME)..."
 	docker run --rm -it \
 		--name $(CONTAINER_NAME) \
-		-p 5335:5335/udp -p 5335:5335/tcp \
-		-v $$(pwd)/etc:/etc/unbound \
-		$(IMAGE_NAME)
+		-p 5335:53/udp -p 5335:53/tcp \
+		-v $(PWD)/etc:/etc/unbound \
+		dagorret/unbound
 
-## update-root: Descarga manualmente el archivo root.hints actualizado desde IANA
-update-root:
-	@echo "🌐 Descargando root.hints desde $(ROOT_HINTS_URL)..."
-	curl -fsSL $(ROOT_HINTS_URL) -o $(ROOT_HINTS_FILE)
-	@echo "✅ Archivo actualizado: $(ROOT_HINTS_FILE)"
+# Levanta el servicio con Docker Compose
+up:
+	docker compose up -d
 
-## clean: Elimina la imagen construida localmente (uso con cuidado)
-clean:
-	@echo "🧹 Eliminando imagen $(IMAGE_NAME)..."
-	docker rmi $(IMAGE_NAME) || true
+# Detiene el contenedor
+stop:
+	docker compose down
 
-## help: Muestra esta ayuda
-help:
-	@echo "Comandos disponibles:"
-	@grep -E '^##' $(MAKEFILE_LIST) | sed -e 's/## //'
+# Reconstruye sin usar caché y actualiza desde Git
+rebuild:
+	@echo "🔄 Actualizando y reconstruyendo imagen..."
+	git pull
+	docker compose build --no-cache
+	docker compose up -d
 
-.DEFAULT_GOAL := help
+# Ver estadísticas en tiempo real con unbound-control
+stats:
+	docker exec -it $(CONTAINER_NAME) unbound-control stats_noreset
+
+# Ver actividad en tiempo real (consultas recibidas)
+watch:
+	docker exec -it $(CONTAINER_NAME) unbound-control log_reopen
+
+# Purgar la caché DNS
+flush:
+	docker exec -it $(CONTAINER_NAME) unbound-control flush_zone .
+
+# Mostrar logs en vivo
+logs:
+	docker compose logs -f
