@@ -6,7 +6,7 @@ LABEL maintainer="dagorret.com.ar"
 
 # Instala Unbound, herramientas de red, y curl para actualizar root.hints
 RUN apk update && \
-    apk add --no-cache unbound unbound-libs bind-tools curl
+    apk add --no-cache unbound unbound-libs bind-tools curl openssl
 
 # Crea el directorio de configuración y establece permisos
 RUN mkdir -p /etc/unbound && \
