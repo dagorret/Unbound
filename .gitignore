@@ -1,0 +1,36 @@
+# Archivos y directorios comunes que no deben subirse
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de logs
+*.log
+logs/
+infra/unbound/logs/
+
+# Claves TLS de Unbound (generadas por unbound-control-setup)
+infra/unbound/etc/unbound_server.key
+infra/unbound/etc/unbound_server.pem
+infra/unbound/etc/unbound_control.key
+infra/unbound/etc/unbound_control.pem
+
+# Archivos de estado de ejecución
+*.pid
+infra/unbound/etc/unbound.pid
+
+# Archivos temporales
+*.swp
+*.tmp
+*.bak
+*~
+
+# Archivos de estadísticas o análisis runtime
+stats.sh
+dnswatch.sh
+
+# Imágenes generadas (si hay)
+*.tar
+
+# Archivos root.hints actualizados localmente
+infra/unbound/etc/root.hints
