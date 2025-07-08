@@ -1,167 +1,159 @@
+<!-- Logo de Unbound -->
+<p align="center">
+  <img src="https://nlnetlabs.nl/logo/unbound.svg" alt="Unbound logo" height="100">
+</p>
 
+# Unbound DNS Recursivo en Docker
 
-Unbound DNS Resolver en Docker
+Este proyecto contiene una imagen Docker personalizada y altamente optimizada de [Unbound](https://nlnetlabs.nl/projects/unbound/about/), pensada para brindar un servicio de resoluciÃ³n DNS recursivo, seguro, rÃ¡pido y completamente independiente (sin reenviadores).
 
- 
+## Tabla de contenido
 
-📌 Descripción General
-
-Contenedor Docker personalizado de Unbound basado en Alpine Linux. Optimizado para:
-
-Resolución DNS recursiva completa y directa a las raíces
-
-Desempeño y privacidad máximos
-
-Autoactualización de root.hints
-
-
-
----
-
-📁 Estructura del Proyecto
-
-.
-├── etc/
-│   ├── unbound.conf               # Configuración principal
-│   ├── root.hints                 # Raíces actualizadas
-│   ├── *.pem / *.key              # Archivos de control remoto
-├── docker-compose.yml            # Orquestador de servicios
-├── Dockerfile                    # Construcción de imagen
-├── Makefile                      # Comandos comunes
-├── entrypoint.sh                 # Script inicial de arranque
-├── update-root.sh                # Script para actualizar root.hints
-
+1. [CaracterÃ­sticas](#caracterÃ­sticas)
+2. [Estructura del Proyecto](#estructura-del-proyecto)
+3. [CÃ³mo Construir la Imagen](#cÃ³mo-construir-la-imagen)
+4. [CÃ³mo Ejecutar el Contenedor](#cÃ³mo-ejecutar-el-contenedor)
+5. [docker-compose.yml](#docker-composeyml)
+6. [entrypoint.sh](#entrypointsh)
+7. [Makefile](#makefile)
+8. [Scripts auxiliares](#scripts-auxiliares)
+9. [Licencias y CrÃ©ditos](#licencias-y-crÃ©ditos)
 
 ---
 
-🚀 Uso Básico
+## CaracterÃ­sticas
 
-Construcción de la imagen:
+- Imagen basada en Alpine Linux (ligera y rÃ¡pida)
+- ActualizaciÃ³n automÃ¡tica de `root.hints` en cada inicio
+- Control remoto habilitado (vÃ­a `unbound-control`)
+- Carga dinÃ¡mica de claves TLS si no existen
+- Verbosidad nivel 1 para diagnÃ³stico sin excesivo logging
+- Escucha en todos los interfaces (`0.0.0.0`) por UDP y TCP
+- ExposiciÃ³n en el puerto 53 (por defecto, puede redireccionarse)
 
+## Estructura del Proyecto
+
+```
+infra/unbound/
+â”œâ”€â”€ etc/
+â”‚   â”œâ”€â”€ unbound.conf
+â”‚   â”œâ”€â”€ root.hints
+â”‚   â””â”€â”€ claves TLS (.pem / .key)
+â”œâ”€â”€ entrypoint.sh
+â”œâ”€â”€ docker-compose.yml
+â”œâ”€â”€ Dockerfile
+â”œâ”€â”€ Makefile
+â””â”€â”€ update-root.sh
+```
+
+## CÃ³mo Construir la Imagen
+
+```bash
 make build
+```
 
-Inicio del contenedor:
+## CÃ³mo Ejecutar el Contenedor
 
-make up
+```bash
+make run
+```
 
-Actualización de root.hints:
+O con Docker directo:
 
-make update-root
-
-Control remoto:
-
-docker exec -it unbound unbound-control stats
-
+```bash
+docker run -d \
+  --name unbound \
+  -p 5335:53/udp -p 5335:53/tcp \
+  -v $(pwd)/etc:/etc/unbound \
+  dagorret/unbound
+```
 
 ---
 
-🔧 docker-compose.yml
+## docker-compose.yml
 
-version: "3.9"
+```yaml
+version: '3.9'
 
 services:
   unbound:
     container_name: unbound
-    build: .
+    image: dagorret/unbound:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "5335:53/udp"
       - "5335:53/tcp"
     volumes:
       - ./etc:/etc/unbound
     restart: unless-stopped
+```
 
-> ℹ️ Referencias:
-
-Docker Compose syntax
-
-Unbound manual
-
-
-
-
+> ðŸ“Œ Puerto interno 53 â†’ expuesto como 5335. Referencia: [IETF DNS Ports](https://datatracker.ietf.org/doc/html/rfc1035)
 
 ---
 
-🐳 Dockerfile (resumen)
+## entrypoint.sh
 
-Basado en Alpine para mínima huella
+Este script actualiza el archivo `root.hints` automÃ¡ticamente cada vez que se inicia el contenedor.
 
-Expone el puerto 53 UDP/TCP
+```bash
+#!/bin/sh
+set -e
 
-Usa entrypoint.sh para descargar raíces al inicio
+ROOT_HINTS_URL="https://www.internic.net/domain/named.root"
+ROOT_HINTS_FILE="/etc/unbound/root.hints"
 
-Permite configuración persistente con bind-mount ./etc
+echo "[Entrypoint] Actualizando root.hints desde ${ROOT_HINTS_URL}"
+wget -qO "$ROOT_HINTS_FILE" "$ROOT_HINTS_URL" || echo "âš ï¸ No se pudo actualizar root.hints"
 
-
-FROM alpine:latest
-LABEL maintainer="dagorret.com.ar"
-...
-
-> Referencias:
-
-Unbound NLnetLabs GitHub
-
-Unbound Alpine Package
-
-
-
-
+exec unbound -d -c /etc/unbound/unbound.conf
+```
 
 ---
 
-🛠️ Makefile (resumen)
+## Makefile
 
+```make
 build:
-	docker compose build
-up:
-	docker compose up -d
-update-root:
-	./update-root.sh
-stats:
-	docker exec -it unbound unbound-control stats
+	docker build -t dagorret/unbound .
 
+run:
+	docker run -d \
+	  --name unbound \
+	  -p 5335:53/udp -p 5335:53/tcp \
+	  -v $(PWD)/etc:/etc/unbound \
+	  dagorret/unbound
 
----
+stop:
+	docker stop unbound || true && docker rm unbound || true
 
-📊 Estadísticas y monitoreo
-
-docker exec -it unbound unbound-control stats_noreset
-docker exec -it unbound unbound-control dump_cache | less
-
-
----
-
-🧪 Prueba DNS
-
-dig @127.0.0.1 -p 5335 unrc.edu.ar A +ttlunits
-
+logs:
+	docker logs -f unbound
+```
 
 ---
 
-🖼️ Ilustraciones (con atribución)
+## Scripts auxiliares
 
+### update-root.sh
 
+Permite actualizar manualmente el archivo de raÃ­ces desde el host:
 
-> Imagen cortesía de Wikimedia Commons, licencia GNU Free Documentation License.
-
-
-
-
----
-
-⚖️ Licencia y atribuciones
-
-Este proyecto:
-
-Usa Unbound, software desarrollado por NLnet Labs
-
-Está licenciado bajo la licencia BSD-3-Clause
-
-
-Unbound (C) 2007–2025 NLnet Labs. All rights reserved.
-
+```bash
+#!/bin/sh
+curl -o etc/root.hints https://www.internic.net/domain/named.root
+```
 
 ---
 
-¿Querés agregar ejemplos avanzados como forward-zone, DNS-over-TLS, o monitoreo por Prometheus? Puedo extender el README en nuevas secciones.
+## Licencias y CrÃ©ditos
 
+- Imagen construida sobre [Alpine Linux](https://alpinelinux.org/)
+- Proyecto principal: [Unbound DNS Resolver](https://nlnetlabs.nl/projects/unbound/about/)
+- Autor de esta versiÃ³n: [Dagorret.com.ar](https://github.com/dagorret)
+- Logo Unbound usado bajo permiso de [NLnet Labs](https://nlnetlabs.nl/)
+- GNU Bash & Makefile logos: [GNU Artwork](https://www.gnu.org/graphics/)
+
+Â© 2025 NLnet Labs / dagorret. Bajo licencia MIT salvo donde se indique lo contrario.
