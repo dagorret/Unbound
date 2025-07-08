@@ -11,7 +11,7 @@ services:
       - "5335:53/tcp"  # Igual que arriba pero para consultas DNS por TCP (usado en DNSSEC, zonas grandes)
 
     volumes:
-      - ./etc:/etc/unbound
+      # - ./etc:/etc/unbound
       # Monta la carpeta local "etc/" como /etc/unbound en el contenedor.
       # Esto permite editar `unbound.conf` y que los cambios se reflejen al reiniciar el contenedor.
       # Ref: https://docs.docker.com/storage/volumes/
