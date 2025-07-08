@@ -14,7 +14,7 @@ RUN mkdir -p /etc/unbound && \
 
 # Copia los archivos de configuración (excepto las claves)
 COPY ./etc/unbound.conf /etc/unbound/unbound.conf
-COPY ./etc/root.hints /etc/unbound/root.hints
+#COPY ./etc/root.hints /etc/unbound/root.hints
 
 # Copia el script de arranque
 COPY entrypoint.sh /entrypoint.sh
