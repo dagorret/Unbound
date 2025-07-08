@@ -1,60 +1,40 @@
-version: '3.9'  # Versión del esquema Docker Compose (compatible con Docker 20.10+)
+version: '3.9'  # Compatible con Docker 20.10+
 
 services:
   unbound:
-    container_name: unbound  # Nombre fijo del contenedor (útil para administración)
-    
+    container_name: unbound
     build:
-      context: .              # Construye desde el Dockerfile en el directorio actual
-      dockerfile: Dockerfile # Nombre explícito del Dockerfile
-
-    image: dagorret/unbound:latest  # Etiqueta de la imagen local
-
+      context: .
+      dockerfile: Dockerfile
+    image: dagorret/unbound:latest
     ports:
-      - "5335:53/udp"  # Expone el puerto UDP 53 interno como 5335 en el host
-      - "5335:53/tcp"  # También para TCP, útil en DNSSEC y grandes respuestas
-
+      - "5335:53/udp"  # DNS UDP externo
+      - "5335:53/tcp"  # DNS TCP externo
     volumes:
-      - ./etc:/etc/unbound
-      # Monta el directorio local ./etc como /etc/unbound dentro del contenedor.
-      # Esto permite modificar unbound.conf y claves TLS desde el host.
-      # También se actualiza root.hints automáticamente desde el entrypoint.sh
-
-    #user: "1000:1000"
-    # Opcional: fuerza a correr el contenedor como UID y GID del usuario actual.
-    # Mejora la seguridad. Verificar con `id` si querés personalizar.
-
+      - ./etc:/etc/unbound              # Configuración editable desde el host
+      - unbound-control:/var/unbound-control  # Archivos de control remoto (solo contenedor)
     restart: unless-stopped
-    # Política de reinicio: reinicia automáticamente salvo detención manual.
-    # Ideal para uso en servidores personales o NUCs sin monitoreo constante.
-
     healthcheck:
-      test: ["CMD", "dig", "github.com", "@127.0.0.1", "-p", "53"]
+      test: ["CMD-SHELL", "dig +short github.com @127.0.0.1 -p 53"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-      # Revisa periódicamente que el servicio DNS responda.
-      # Si falla, Docker marcará el contenedor como unhealthy.
-
     logging:
       driver: "json-file"
       options:
         max-size: "1m"
         max-file: "3"
-      # Rotación de logs para evitar que el contenedor consuma mucho disco.
-
     environment:
       - TZ=America/Argentina/Cordoba
-      # Opcional: define la zona horaria dentro del contenedor para logs y control
-
     networks:
       default:
         aliases:
-          - dns.local
-        # Permite que otros servicios Docker puedan resolver `dns.local` hacia este Unbound
+          - dns.local  # Para resolución interna en la red Docker
+
+volumes:
+  unbound-control:
 
 networks:
   default:
-    driver: bridge
-    # Red por defecto con aislamiento. Podés crear otra red si querés integrarlo con más servicios.
+    driver: bridge  # Red aislada por defecto
