@@ -1,152 +1,167 @@
-Unbound DNS Recursivo en Docker
 
-Contenedor Docker liviano, seguro y eficiente que ejecuta Unbound, un resolvedor DNS recursivo validante. Está diseñado para brindar privacidad, velocidad, resiliencia y fácil integración con otras soluciones como AdGuard Home o Pi-hole.
+
+Unbound DNS Resolver en Docker
+
+ 
+
+📌 Descripción General
+
+Contenedor Docker personalizado de Unbound basado en Alpine Linux. Optimizado para:
+
+Resolución DNS recursiva completa y directa a las raíces
+
+Desempeño y privacidad máximos
+
+Autoactualización de root.hints
+
 
 
 ---
 
-⚙️ #1 Requisitos previos
+📁 Estructura del Proyecto
 
-Docker y Docker Compose instalados
-
-Sistema operativo compatible (Ubuntu, Debian, Arch, Alpine, etc.)
-
-Puerto 5335 disponible en el host (evita conflicto con otros DNS locales)
-
-Conexión saliente a Internet para resolver recursivamente
-
-
-
----
-
-📂 #2 Estructura del repositorio
-
-Unbound/
-├── Dockerfile              # Imagen basada en Alpine
-├── docker-compose.yml     # Define volumen, puertos, configuración
-├── Makefile                # Comandos para build/test
-├── entrypoint.sh           # Script que actualiza root.hints
+.
 ├── etc/
-│   ├── unbound.conf        # Archivo de configuración principal
-│   ├── root.hints          # Servidores raíz actualizados
-│   └── claves TLS          # Generadas automáticamente para control remoto
-├── scripts/                # Scripts auxiliares opcionales
+│   ├── unbound.conf               # Configuración principal
+│   ├── root.hints                 # Raíces actualizadas
+│   ├── *.pem / *.key              # Archivos de control remoto
+├── docker-compose.yml            # Orquestador de servicios
+├── Dockerfile                    # Construcción de imagen
+├── Makefile                      # Comandos comunes
+├── entrypoint.sh                 # Script inicial de arranque
+├── update-root.sh                # Script para actualizar root.hints
 
 
 ---
 
-🚀 #3 Instrucciones de uso
+🚀 Uso Básico
 
-✏️ Paso 1: Configurar Unbound
-
-Editá etc/unbound.conf si querés personalizar caché, reglas, DNSSEC, etc.
-
-⚖️ Paso 2: Construir la imagen
+Construcción de la imagen:
 
 make build
 
-▶️ Paso 3: Ejecutar
+Inicio del contenedor:
 
-docker compose up -d
+make up
 
+Actualización de root.hints:
 
----
+make update-root
 
-📁 #4 Volúmenes y persistencia
-
-El contenedor monta el directorio etc/ del host dentro del contenedor:
-
-unbound.conf: configuración principal
-
-root.hints: servidores raíz actualizados
-
-Claves de control remoto TLS
-
-
-Esto garantiza que las configuraciones sean persistentes y editables desde el host.
-
-
----
-
-🔍 #5 Diagnóstico y administración
-
-Consultar un dominio:
-
-dig @127.0.0.1 -p 5335 example.com A +ttlunits
-
-Ver estadísticas:
+Control remoto:
 
 docker exec -it unbound unbound-control stats
 
-Ver logs temporales:
 
-docker logs -f unbound
+---
+
+🔧 docker-compose.yml
+
+version: "3.9"
+
+services:
+  unbound:
+    container_name: unbound
+    build: .
+    ports:
+      - "5335:53/udp"
+      - "5335:53/tcp"
+    volumes:
+      - ./etc:/etc/unbound
+    restart: unless-stopped
+
+> ℹ️ Referencias:
+
+Docker Compose syntax
+
+Unbound manual
+
+
 
 
 
 ---
 
-🔄 #6 Actualización
+🐳 Dockerfile (resumen)
 
-↑ Imagen:
+Basado en Alpine para mínima huella
 
-make rebuild
+Expone el puerto 53 UDP/TCP
 
-📅 root.hints:
+Usa entrypoint.sh para descargar raíces al inicio
 
-El archivo root.hints se actualiza automáticamente al iniciar el contenedor con entrypoint.sh.
-
-Podés forzarlo manualmente:
-
-make update-roots
+Permite configuración persistente con bind-mount ./etc
 
 
----
+FROM alpine:latest
+LABEL maintainer="dagorret.com.ar"
+...
 
-🪡 #7 Seguridad
+> Referencias:
 
-Expone solo puerto 5335
+Unbound NLnetLabs GitHub
 
-No permite reenvío ni upstreams
+Unbound Alpine Package
 
-Validación DNSSEC activada
 
-TLS con control remoto (solo localhost)
 
 
 
 ---
 
-📟 #8 Referencias
+🛠️ Makefile (resumen)
 
-Unbound documentation
+build:
+	docker compose build
+up:
+	docker compose up -d
+update-root:
+	./update-root.sh
+stats:
+	docker exec -it unbound unbound-control stats
 
-Alpine Unbound package
 
-Mejores prácticas DNS recursivo
+---
+
+📊 Estadísticas y monitoreo
+
+docker exec -it unbound unbound-control stats_noreset
+docker exec -it unbound unbound-control dump_cache | less
+
+
+---
+
+🧪 Prueba DNS
+
+dig @127.0.0.1 -p 5335 unrc.edu.ar A +ttlunits
+
+
+---
+
+🖼️ Ilustraciones (con atribución)
+
+
+
+> Imagen cortesía de Wikimedia Commons, licencia GNU Free Documentation License.
+
 
 
 
 ---
 
-🛠️ #9 Desarrollo y contribuciones
+⚖️ Licencia y atribuciones
 
-Pull requests y sugerencias son bienvenidas.
+Este proyecto:
+
+Usa Unbound, software desarrollado por NLnet Labs
+
+Está licenciado bajo la licencia BSD-3-Clause
 
 
----
-
-🎨 #10 Personalización
-
-Podés cambiar el puerto expuesto en docker-compose.yml
-
-Integración simple con AdGuard Home usando forward custom DNS
-
-Personalizá el caché o TTL en unbound.conf
-
+Unbound (C) 2007–2025 NLnet Labs. All rights reserved.
 
 
 ---
 
-Este proyecto está diseñado para ofrecer control total sobre tus resoluciones DNS, con énfasis en privacidad, rendimiento y estabilidad.
+¿Querés agregar ejemplos avanzados como forward-zone, DNS-over-TLS, o monitoreo por Prometheus? Puedo extender el README en nuevas secciones.
 
