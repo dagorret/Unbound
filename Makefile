@@ -1,42 +1,47 @@
-# Nombre de la imagen a construir
-IMAGE_NAME=dagorret/unbound
-# Puerto donde escucha localmente el servicio DNS
-DNS_PORT=5335
+# ----------------------------
+# Makefile para imagen Unbound
+# ----------------------------
+# Provee comandos para construir la imagen Docker, ejecutarla, y actualizar raíces DNS manualmente.
 
-# 🛠️ Build: compila la imagen desde el Dockerfile
+# Nombre de la imagen
+IMAGE_NAME = dagorret/unbound
+CONTAINER_NAME = unbound
+
+# Versión de Unbound deseada (puede extraerse dinámicamente si se prefiere)
+UNBOUND_VERSION ?= latest
+
+# Ruta al archivo de raíces DNS dentro del árbol del build
+ROOT_HINTS_URL = https://www.internic.net/domain/named.root
+ROOT_HINTS_FILE = etc/root.hints
+
+## build: Construye la imagen Docker local
 build:
-	@echo "🔨 Construyendo la imagen Docker..."
+	@echo "🔧 Construyendo imagen $(IMAGE_NAME)..."
 	docker build -t $(IMAGE_NAME) .
 
-# 🚀 Run: inicia el contenedor de forma interactiva con volumen de configuración
+## run: Lanza el contenedor en modo interactivo para pruebas
 run:
-	@echo "🚀 Ejecutando contenedor Docker en puerto $(DNS_PORT)..."
-	docker run -d --name unbound \
-		-p $(DNS_PORT):53/udp -p $(DNS_PORT):53/tcp \
-		-v $(PWD)/etc:/etc/unbound \
+	@echo "🚀 Ejecutando contenedor $(CONTAINER_NAME)..."
+	docker run --rm -it \
+		--name $(CONTAINER_NAME) \
+		-p 5335:5335/udp -p 5335:5335/tcp \
+		-v $$(pwd)/etc:/etc/unbound \
 		$(IMAGE_NAME)
 
-# 🔁 Restart: reinicia el contenedor (útil tras cambios en configuración)
-restart:
-	@echo "🔄 Reiniciando contenedor..."
-	docker restart unbound
+## update-root: Descarga manualmente el archivo root.hints actualizado desde IANA
+update-root:
+	@echo "🌐 Descargando root.hints desde $(ROOT_HINTS_URL)..."
+	curl -fsSL $(ROOT_HINTS_URL) -o $(ROOT_HINTS_FILE)
+	@echo "✅ Archivo actualizado: $(ROOT_HINTS_FILE)"
 
-# 🧹 Clean: borra el contenedor y la imagen (¡precaución!)
+## clean: Elimina la imagen construida localmente (uso con cuidado)
 clean:
-	@echo "🧹 Eliminando contenedor e imagen..."
-	-docker rm -f unbound
-	-docker rmi -f $(IMAGE_NAME)
+	@echo "🧹 Eliminando imagen $(IMAGE_NAME)..."
+	docker rmi $(IMAGE_NAME) || true
 
-# 📋 Logs: muestra los logs del contenedor
-logs:
-	docker logs -f unbound
+## help: Muestra esta ayuda
+help:
+	@echo "Comandos disponibles:"
+	@grep -E '^##' $(MAKEFILE_LIST) | sed -e 's/## //'
 
-# 💬 Shell: entra al contenedor con un shell interactivo
-shell:
-	docker exec -it unbound sh
-
-# 🔑 Setup-control: genera claves para control remoto si no existen
-setup-control:
-	@echo "🔐 Generando claves de control..."
-	docker run --rm -v $(PWD)/etc:/etc/unbound alpine:latest \
-		sh -c "apk add --no-cache unbound && unbound-control-setup -d /etc/unbound"
+.DEFAULT_GOAL := help
