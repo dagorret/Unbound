@@ -1,0 +1,34 @@
+version: '3.9'  # Versión de schema de Compose compatible con Docker 20.10+. Ref: https://docs.docker.com/compose/compose-file/
+
+services:
+  unbound:  # Nombre del servicio (puede usarse para networking interno entre contenedores)
+    build: .  # Construye desde el Dockerfile en el directorio actual (donde ejecutarás `docker-compose up`)
+    
+    container_name: unbound  # Nombre fijo del contenedor (evita que Docker le asigne uno aleatorio)
+
+    ports:
+      - "5335:53/udp"  # Expone el puerto 53 UDP interno en el host como 5335 (modo DNS estándar)
+      - "5335:53/tcp"  # Igual que arriba pero para consultas DNS por TCP (usado en DNSSEC, zonas grandes)
+
+    volumes:
+      - ./etc:/etc/unbound
+      # Monta la carpeta local "etc/" como /etc/unbound en el contenedor.
+      # Esto permite editar `unbound.conf` y que los cambios se reflejen al reiniciar el contenedor.
+      # Ref: https://docs.docker.com/storage/volumes/
+
+    restart: unless-stopped
+      # Política de reinicio automática. 
+      # "unless-stopped" reinicia el contenedor en fallos o reinicio del sistema, pero no si se detuvo manualmente.
+      # Ref: https://docs.docker.com/config/containers/start-containers-automatically/
+
+    healthcheck:
+      # Verifica que Unbound esté respondiendo correctamente.
+      # Docker puede usar este estado para reiniciar contenedores defectuosos o marcar su estado en "unhealthy".
+      test: ["CMD", "dig", "@127.0.0.1", "-p", "53", "cloudflare.com", "A", "+short"]
+        # Usa el comando dig para preguntar por cloudflare.com al servidor DNS en 127.0.0.1:53.
+        # Si el contenedor no responde correctamente, el healthcheck falla.
+        # Ref: https://docs.docker.com/engine/reference/builder/#healthcheck
+      interval: 30s       # Ejecuta el chequeo cada 30 segundos.
+      timeout: 3s         # Espera hasta 3 segundos por respuesta antes de marcar como fallo.
+      retries: 3          # Marca como "unhealthy" luego de 3 fallos consecutivos.
+      start_period: 10s   # Espera 10 segundos tras el arranque antes de iniciar los chequeos.
