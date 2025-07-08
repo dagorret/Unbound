@@ -1,48 +1,32 @@
-Dockerfile optimizado para Unbound sobre Alpine Linux
-
-------------------------------------------------------
-
-Diseñado para ser eficiente, seguro, y con configuración externa
-
-Incluye soporte para control remoto y actualización automática de root.hints
-
-🔹 Imagen base liviana y actualizada
-
+# Usa Alpine Linux por su bajo tamaño y seguridad
 FROM alpine:latest
 
-🔹 Metadatos del mantenedor
-
+# Información del mantenedor
 LABEL maintainer="dagorret.com.ar"
 
-🔹 Instalación de Unbound y herramientas de diagnóstico DNS
+# Instala Unbound y herramientas útiles (como dig)
+RUN apk update && \
+    apk add --no-cache unbound unbound-libs bind-tools && \
+    mkdir -p /etc/unbound && \
+    chown -R unbound:unbound /etc/unbound
 
-RUN apk update && 
-apk add --no-cache unbound unbound-libs bind-tools && 
-mkdir -p /etc/unbound && 
-chown -R unbound:unbound /etc/unbound
-
-🔹 Copia archivos de configuración desde el contexto de build
-
+# Copia configuración desde ./etc del host al contenedor
 COPY ./etc /etc/unbound
 
-🔹 Genera claves de control remoto si no existen
+# Copia el script de entrada que actualiza root.hints antes de iniciar
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-RUN [ ! -f /etc/unbound/unbound_control.key ] && 
-unbound-control-setup -d /etc/unbound || true
+# Genera claves para control remoto si aún no existen
+RUN [ ! -f /etc/unbound/unbound_control.key ] && \
+    unbound-control-setup -d /etc/unbound || true
 
-🔹 Copia el script de entrada (para actualizar root.hints, etc.)
+# Expone el puerto alternativo 5335 (TCP y UDP) para evitar conflictos con servicios locales
+EXPOSE 5335/udp
+EXPOSE 5335/tcp
 
-COPY entrypoint.sh /entrypoint.sh RUN chmod +x /entrypoint.sh
-
-🔹 Expone puertos DNS
-
-EXPOSE 5335/udp EXPOSE 5353/tcp
-
-🔹 Script de entrada
-
+# Script que actualiza raíces y luego lanza Unbound
 ENTRYPOINT ["/entrypoint.sh"]
 
-🔹 Ejecución principal de Unbound
-
+# Comando por defecto: inicia Unbound en foreground y con configuración externa
 CMD ["unbound", "-d", "-c", "/etc/unbound/unbound.conf"]
-
