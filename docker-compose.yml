@@ -20,7 +20,7 @@ services:
       # Esto permite modificar unbound.conf y claves TLS desde el host.
       # También se actualiza root.hints automáticamente desde el entrypoint.sh
 
-    user: "1000:1000"
+    #user: "1000:1000"
     # Opcional: fuerza a correr el contenedor como UID y GID del usuario actual.
     # Mejora la seguridad. Verificar con `id` si querés personalizar.
 
